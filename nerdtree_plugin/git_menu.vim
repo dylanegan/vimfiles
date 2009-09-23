@@ -1,5 +1,5 @@
 " ============================================================================
-" File:        nerdtree_git_menu.vim
+" File:        git_menu.vim
 " Description: plugin for the NERD Tree that provides a git menu
 " Maintainer:  Martin Grenfell <martin_grenfell at msn dot com>
 " Last Change: 20 July, 2009
@@ -21,93 +21,96 @@ if exists("g:loaded_nerdtree_git_menu")
 endif
 let g:loaded_nerdtree_git_menu = 1
 
-"call NERDTreeAddMenuItem({
-            "\ 'text': '(g)it menu',
-            "\ 'shortcut': 'g',
-            "\ 'isActiveCallback': 'NERDTreeGitMenuEnabled',
-            "\ 'callback': 'NERDTreeGitMenu' })
-
 call NERDTreeAddMenuSeparator({'isActiveCallback': 'NERDTreeGitMenuEnabled'})
+let s:menu = NERDTreeAddSubmenu({
+            \ 'text': '(g)it menu',
+            \ 'shortcut': 'g',
+            \ 'isActiveCallback': 'NERDTreeGitMenuEnabled' })
 
 call NERDTreeAddMenuItem({
             \ 'text': 'git (a)dd',
             \ 'shortcut': 'a',
             \ 'isActiveCallback': 'NERDTreeGitMenuEnabled',
-            \ 'callback': 'NERDTreeGitAdd' })
+            \ 'callback': 'NERDTreeGitAdd',
+            \ 'parent': s:menu })
 
 call NERDTreeAddMenuItem({
             \ 'text': 'git (c)heckout',
             \ 'shortcut': 'c',
             \ 'isActiveCallback': 'NERDTreeGitMenuEnabled',
-            \ 'callback': 'NERDTreeGitCheckout' })
+            \ 'callback': 'NERDTreeGitCheckout',
+            \ 'parent': s:menu })
 
 call NERDTreeAddMenuItem({
             \ 'text': 'git (m)v',
             \ 'shortcut': 'm',
             \ 'isActiveCallback': 'NERDTreeGitMenuEnabled',
-            \ 'callback': 'NERDTreeGitMove' })
+            \ 'callback': 'NERDTreeGitMove',
+            \ 'parent': s:menu })
 
 call NERDTreeAddMenuItem({
             \ 'text': 'git (r)m',
             \ 'shortcut': 'r',
             \ 'isActiveCallback': 'NERDTreeGitMenuEnabled',
-            \ 'callback': 'NERDTreeGitRemove' })
+            \ 'callback': 'NERDTreeGitRemove',
+            \ 'parent': s:menu })
 
 function! NERDTreeGitMenuEnabled()
     return isdirectory(s:GitRepoPath())
 endfunction
 
 function! s:GitRepoPath()
-    return b:NERDTreeRoot.path.str(0) . ".git"
+    return b:NERDTreeRoot.path.str() . ".git"
 endfunction
 
-function! NERDTreeGitMenu()
+function! NERDTreeGitMove()
     let node = g:NERDTreeFileNode.GetSelected()
-
     let path = node.path
-    let parent = path.getParent()
+    let p = path.str({'escape': 1})
 
-    let prompt = "NERDTree Git Menu\n" .
-       \ "==========================================================\n".
-       \ "Select the desired operation:                             \n" .
-       \ " (a) - git add\n".
-       \ " (c) - git checkout\n".
-       \ " (m) - git mv\n".
-       \ " (r) - git rm\n"
-
-    echo prompt
-
-    let choice = nr2char(getchar())
-
-    if choice ==# "a"
-        call s:promptCommand('add ', path.strForOS(1), 'file')
-    elseif choice ==# "c"
-        call s:promptCommand('checkout ', path.strForOS(1), 'file')
-    elseif choice ==# "m"
-        let p = path.strForOS(1)
-        call s:promptCommand('mv ', p . ' ' . p, 'file')
-    elseif choice ==# "r"
-        call s:promptCommand('rm ', path.strForOS(1), 'file')
+    let newPath = input("==========================================================\n" .
+                          \ "Enter the new path for the file:                          \n" .
+                          \ "", node.path.str())
+    if newPath ==# ''
+        call s:echo("git mv aborted.")
+        return
     endif
 
-    call node.parent.refresh()
-    call NERDTreeRender()
+    call s:execGitCmd('mv ' . p . ' ' . newPath)
 endfunction
 
-function! s:promptCommand(sub_command, cmd_tail_default, complete)
-    let extra_options  = ' --git-dir=' . s:GitRepoPath()
-    let extra_options .= ' --work-tree=' . b:NERDTreeRoot.path.str(0) . ' '
-    let base = "git" . extra_options . a:sub_command
+function! NERDTreeGitAdd()
+    let node = g:NERDTreeFileNode.GetSelected()
+    let path = node.path
+    call s:execGitCmd('add ' . path.str({'escape': 1}))
+endfunction
 
-    let cmd_tail = input(":!" . base,  a:cmd_tail_default, a:complete)
-    if cmd_tail != ''
-        let output = system(base . cmd_tail)
-        redraw!
-        if v:shell_error != 0
-            echo output
+function! NERDTreeGitRemove()
+    let node = g:NERDTreeFileNode.GetSelected()
+    let path = node.path
+    call s:execGitCmd('rm ' . path.str({'escape': 1}))
+endfunction
+
+function! NERDTreeGitCheckout()
+    let node = g:NERDTreeFileNode.GetSelected()
+    let path = node.path
+    call s:execGitCmd('checkout ' . path.str({'escape': 1}))
+endfunction
+
+function! s:execGitCmd(sub_cmd)
+    let extra_options  = '--git-dir=' . s:GitRepoPath() . ' '
+    let extra_options .= '--work-tree=' . b:NERDTreeRoot.path.str()
+    let cmd = "git" . ' ' . extra_options . ' ' . a:sub_cmd
+
+    let output = system(cmd)
+    redraw!
+    if v:shell_error == 0
+        let node = g:NERDTreeFileNode.GetSelected()
+        if !node.isRoot()
+            call node.parent.refresh()
+            call NERDTreeRender()
         endif
     else
-        redraw
-        echo "Aborted"
+        echomsg output
     endif
 endfunction

@@ -1,8 +1,8 @@
 " ============================================================================
-" File:        nerdtree_fs_menu.vim
+" File:        exec_menuitem.vim
 " Description: plugin for NERD Tree that provides an execute file menu item
 " Maintainer:  Martin Grenfell <martin_grenfell at msn dot com>
-" Last Change: 22 July, 2009
+" Last Change: 6 Sep, 2009
 " License:     This program is free software. It comes without any warranty,
 "              to the extent permitted by applicable law. You can redistribute
 "              it and/or modify it under the terms of the Do What The Fuck You
@@ -16,7 +16,7 @@ endif
 let g:loaded_nerdtree_exec_menuitem = 1
 
 call NERDTreeAddMenuItem({
-            \ 'text': '(!) - Execute file',
+            \ 'text': '(!)Execute file',
             \ 'shortcut': '!',
             \ 'callback': 'NERDTreeExecFile',
             \ 'isActiveCallback': 'NERDTreeExecFileActive' })
@@ -28,8 +28,9 @@ endfunction
 
 function! NERDTreeExecFile()
     let treenode = g:NERDTreeFileNode.GetSelected()
-    echo "Complete the command to execute (add arguments etc): \n\n"
-    let cmd = treenode.path.strForOS(1)
+    echo "==========================================================\n"
+    echo "Complete the command to execute (add arguments etc):\n"
+    let cmd = treenode.path.str({'escape': 1})
     let cmd = input(':!', cmd . ' ')
 
     if cmd != ''
